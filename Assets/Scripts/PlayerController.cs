@@ -4,14 +4,14 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour, IPunObservable
 {
     private PhotonView photonView;
-    private Material material;
+    private SpriteRenderer spriteRenderer;
 
     private bool isRed;
 
     private void Start()
     {
         photonView = GetComponent<PhotonView>();
-        material = GetComponent<MeshRenderer>().material;
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     private void Update()
@@ -29,11 +29,11 @@ public class PlayerController : MonoBehaviour, IPunObservable
 
         if (isRed)
         {
-            material.color = Color.red;
+            spriteRenderer.color = Color.red;
         }
         else
         {
-            material.color = Color.green;
+            spriteRenderer.color = Color.white;
         }
     }
 
