@@ -9,11 +9,14 @@ public class MapController : Singleton<MapController>, IOnEventCallback
 {
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private int width, height;
+    [SerializeField] private PlayersTop playerTop;
 
     private GameObject[,] cells;
     private List<PlayerController> players = new List<PlayerController>();
 
     private double lastTickTime;
+
+    public List<PlayerController> GetPlayerControllers { get => players; }
 
     public void AddPlayer(PlayerController player)
     {
@@ -37,9 +40,10 @@ public class MapController : Singleton<MapController>, IOnEventCallback
 
     private void Update()
     {
-        if (PhotonNetwork.Time > lastTickTime + 1 && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount == 2)
+        if (PhotonNetwork.Time > lastTickTime + 0.5f && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
         {
             Vector2Int[] directions = players
+                .Where(p => !p.GetIsDead)
                 .OrderBy(p => p.GetPhotonView.Owner.ActorNumber)
                 .Select(p => p.Direction)
                 .ToArray();
@@ -70,6 +74,7 @@ public class MapController : Singleton<MapController>, IOnEventCallback
         if (players.Count != directions.Length) return;
 
         PlayerController[] sortedPlayers = players
+            .Where(p => !p.GetIsDead)
             .OrderBy(p => p.GetPhotonView.Owner.ActorNumber)
             .ToArray();
 
@@ -87,6 +92,18 @@ public class MapController : Singleton<MapController>, IOnEventCallback
             MovePlayer(player);
         }
 
+        foreach (var player in players.Where(p => p.GetIsDead))
+        {
+            Vector2Int pos = player.GamePosition;
+            while (pos.y > 0 && !cells[pos.x, pos.y - 1].activeSelf)
+            {
+                pos.y--;
+            }
+
+            player.GamePosition = pos;
+        }
+
+        playerTop.SetTexts(players);
         lastTickTime = PhotonNetwork.Time;
     }
 
@@ -99,7 +116,11 @@ public class MapController : Singleton<MapController>, IOnEventCallback
         if (targetPosition.x >= width - 1) return;
         if (targetPosition.y >= height - 1) return;
 
-        cells[targetPosition.x, targetPosition.y].SetActive(false);
+        if (cells[targetPosition.x, targetPosition.y].activeSelf)
+        {
+            cells[targetPosition.x, targetPosition.y].SetActive(false);
+            player.AddScore = 1;
+        }
 
         Vector2Int pos = targetPosition;
         PlayerController minePlayer = players.First(p => p.GetPhotonView.IsMine);
@@ -108,7 +129,7 @@ public class MapController : Singleton<MapController>, IOnEventCallback
         {
             while (pos.y < cells.GetLength(1) && !cells[pos.x, pos.y].activeSelf)
             {
-                if(pos == minePlayer.GamePosition)
+                if (pos == minePlayer.GamePosition)
                 {
                     PhotonNetwork.LeaveRoom();
                     break;

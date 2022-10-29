@@ -4,6 +4,7 @@ using Photon.Realtime;
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Linq;
 
 public class GameManager : MonoBehaviourPunCallbacks
 {
@@ -32,6 +33,13 @@ public class GameManager : MonoBehaviourPunCallbacks
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
         Debug.Log($"Player {otherPlayer} left room");
+
+        PlayerController player = MapController.Instance.GetPlayerControllers.First(p => p.GetPhotonView.CreatorActorNr == otherPlayer.ActorNumber);
+
+        if (player != null)
+        {
+            player.Kill();
+        }
     }
 
     public static object DeserializeVector2Int(byte[] data)

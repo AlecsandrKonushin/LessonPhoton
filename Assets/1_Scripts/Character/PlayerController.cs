@@ -1,21 +1,27 @@
 using Photon.Pun;
+using TMPro;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IPunObservable
 {
-    [SerializeField] private Sprite enemySprite;
+    [SerializeField] private Sprite enemySprite, deadSprite;
     [SerializeField] private Transform ladder;
+    [SerializeField] TextMeshProUGUI nickNameText;
 
     private PhotonView photonView;
     private SpriteRenderer spriteRenderer;
 
     private Vector2Int direction;
-
     private float speedMove = 10;
+    private bool isDead;
+    private int score;
 
     public Vector2Int GamePosition;
     public PhotonView GetPhotonView { get => photonView; }
     public Vector2Int Direction { get => direction; set => direction = value; }
+    public bool GetIsDead { get => isDead; }
+    public int GetScore { get => score; }
+    public int AddScore { set => score += value; }
 
     private void Start()
     {
@@ -25,12 +31,18 @@ public class PlayerController : MonoBehaviour, IPunObservable
         GamePosition = new Vector2Int((int)transform.position.x, (int)transform.position.y);
         MapController.Instance.AddPlayer(this);
 
-        if (!photonView.IsMine) spriteRenderer.sprite = enemySprite;
+        nickNameText.SetText(photonView.Owner.NickName);
+
+        if (!photonView.IsMine) 
+        { 
+            spriteRenderer.sprite = enemySprite;
+            nickNameText.color = Color.green;
+        }
     }
 
     private void Update()
     {
-        if (photonView.IsMine)
+        if (photonView.IsMine && !isDead)
         {
             if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) direction = Vector2Int.left;
             if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) direction = Vector2Int.right;
@@ -68,5 +80,13 @@ public class PlayerController : MonoBehaviour, IPunObservable
         {
             direction = (Vector2Int)stream.ReceiveNext();
         }
+    }
+
+    public void Kill()
+    {
+        isDead = true;
+        spriteRenderer.sprite = deadSprite;
+
+        SetLadderLength(0);
     }
 }
