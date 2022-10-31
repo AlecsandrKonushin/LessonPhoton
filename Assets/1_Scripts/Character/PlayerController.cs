@@ -21,6 +21,7 @@ public class PlayerController : MonoBehaviour, IPunObservable
     public Vector2Int Direction { get => direction; set => direction = value; }
     public bool GetIsDead { get => isDead; }
     public int GetScore { get => score; }
+    public int SetScore { set => score = value; }
     public int AddScore { set => score += value; }
 
     private void Start()

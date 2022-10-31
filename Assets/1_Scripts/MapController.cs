@@ -1,6 +1,8 @@
 using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -40,7 +42,7 @@ public class MapController : Singleton<MapController>, IOnEventCallback
 
     private void Update()
     {
-        if (PhotonNetwork.Time > lastTickTime + 0.5f && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
+        if (PhotonNetwork.Time > lastTickTime + 0.5f && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 1)
         {
             Vector2Int[] directions = players
                 .Where(p => !p.GetIsDead)
@@ -56,6 +58,39 @@ public class MapController : Singleton<MapController>, IOnEventCallback
         }
     }
 
+    public void SendSyncData(Player player)
+    {
+        SyncData data = new SyncData();
+
+        RaiseEventOptions options = new RaiseEventOptions { TargetActors = new[] { player.ActorNumber } };
+        SendOptions sendOptions = new SendOptions { Reliability = true };
+
+        data.Positions = new Vector2Int[players.Count];
+        data.Scores = new int[players.Count];
+
+        PlayerController[] sortedPlayers = players
+            .Where(p => !p.GetIsDead)
+            .OrderBy(p => p.GetPhotonView.Owner.ActorNumber)
+            .ToArray();
+
+        for (int i = 0; i < sortedPlayers.Length; i++)
+        {
+            data.Positions[i] = sortedPlayers[i].GamePosition;
+            data.Scores[i] = sortedPlayers[i].GetScore;
+        }
+
+        data.MapData = new BitArray(width * height);
+        for (int w = 0; w < width; w++)
+        {
+            for (int h = 0; h < height; h++)
+            {
+                data.MapData.Set(w + h * cells.GetLength(0), cells[w, h].activeSelf);
+            }
+        }
+
+        PhotonNetwork.RaiseEvent(43, data, options, sendOptions);
+    }
+
     public void OnEvent(EventData photonEvent)
     {
         switch (photonEvent.Code)
@@ -66,6 +101,39 @@ public class MapController : Singleton<MapController>, IOnEventCallback
                 PerformTick(directions);
 
                 break;
+
+            case 43:
+                SyncData data = (SyncData)photonEvent.CustomData;
+
+                OnSyncData(data);
+
+                break;
+        }
+    }
+
+    private void OnSyncData(SyncData data)
+    {
+        PlayerController[] sortedPlayers = players
+           .Where(p => !p.GetIsDead)
+           .Where(p => !p.GetPhotonView.IsMine)
+           .OrderBy(p => p.GetPhotonView.Owner.ActorNumber)
+           .ToArray();
+
+        for (int i = 0; i < sortedPlayers.Length; i++)
+        {
+            sortedPlayers[i].GamePosition = data.Positions[i];
+            sortedPlayers[i].SetScore = data.Scores[i];
+
+            sortedPlayers[i].transform.position = (Vector2)sortedPlayers[i].GamePosition;
+        }
+
+        for (int w = 0; w < width; w++)
+        {
+            for (int h = 0; h < height; h++)
+            {
+                bool cellActive = data.MapData.Get(w + h * cells.GetLength(0));
+                cells[w, h].SetActive(cellActive);
+            }
         }
     }
 
