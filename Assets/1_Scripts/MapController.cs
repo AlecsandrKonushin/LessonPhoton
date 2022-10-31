@@ -18,6 +18,8 @@ public class MapController : Singleton<MapController>, IOnEventCallback
 
     private double lastTickTime;
 
+    public int GetWidth { get => width; }
+    public int GetHeight { get => height; }
     public List<PlayerController> GetPlayerControllers { get => players; }
 
     public void AddPlayer(PlayerController player)
@@ -105,19 +107,26 @@ public class MapController : Singleton<MapController>, IOnEventCallback
             case 43:
                 SyncData data = (SyncData)photonEvent.CustomData;
 
-                OnSyncData(data);
+                StartCoroutine(OnSyncData(data));
 
                 break;
         }
     }
 
-    private void OnSyncData(SyncData data)
+    private IEnumerator OnSyncData(SyncData data)
     {
-        PlayerController[] sortedPlayers = players
+        PlayerController[] sortedPlayers;
+        do
+        {
+            yield return null;
+
+            sortedPlayers =
+                players
            .Where(p => !p.GetIsDead)
            .Where(p => !p.GetPhotonView.IsMine)
            .OrderBy(p => p.GetPhotonView.Owner.ActorNumber)
            .ToArray();
+        } while (sortedPlayers.Length != data.Positions.Length);
 
         for (int i = 0; i < sortedPlayers.Length; i++)
         {
@@ -132,7 +141,7 @@ public class MapController : Singleton<MapController>, IOnEventCallback
             for (int h = 0; h < height; h++)
             {
                 bool cellActive = data.MapData.Get(w + h * cells.GetLength(0));
-                cells[w, h].SetActive(cellActive);
+                if(!cellActive) cells[w, h].SetActive(false);
             }
         }
     }
@@ -177,6 +186,11 @@ public class MapController : Singleton<MapController>, IOnEventCallback
 
     private void MinePlayerBlock(PlayerController player)
     {
+        if(player.Direction == Vector2Int.zero)
+        {
+            return;
+        }
+
         Vector2Int targetPosition = player.GamePosition + player.Direction;
 
         if (targetPosition.x < 0) return;
