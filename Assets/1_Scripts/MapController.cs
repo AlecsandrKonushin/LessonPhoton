@@ -6,9 +6,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Tilemaps;
 
 public class MapController : Singleton<MapController>, IOnEventCallback
 {
+    public Tile CellTile;
+    public Tilemap Tilemap;
+
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private int width, height;
     [SerializeField] private PlayersTop playerTop;
